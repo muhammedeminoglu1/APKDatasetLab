@@ -1,0 +1,101 @@
+{
+  "app_title": "APKDatasetLab - Android Malware Dataset Builder v0.1",
+  "menu_file": "File",
+  "menu_exit": "Exit",
+  "menu_language": "Language",
+  "menu_help": "Help",
+  "menu_about": "About",
+
+  "tab_apk_management": "APK Management",
+  "tab_labeling": "Labeling & Classification",
+  "tab_features": "Feature Selection",
+  "tab_analysis": "Analysis & Processing",
+  "tab_export": "Export Dataset",
+
+  "btn_select_folder": "Select Folder",
+  "btn_add_apk": "Add APK",
+  "btn_clear_list": "Clear List",
+  "btn_remove_selected": "Remove Selected",
+  "btn_import_list": "Import List",
+  "btn_export_list": "Export List",
+
+  "label_total_apks": "Total APKs: {count}",
+  "label_selected": "Selected: {count}",
+  "label_malware": "Malware",
+  "label_benign": "Benign",
+  "label_unlabeled": "Unlabeled",
+  "label_unknown": "Unknown",
+
+  "col_checkbox": "✓",
+  "col_filename": "Filename",
+  "col_label": "Label",
+  "col_family": "Family",
+  "col_size": "Size (MB)",
+  "col_path": "Path",
+
+  "group_folder_labeling": "Folder-Based Labeling",
+  "group_hash_labeling": "Hash Database Labeling",
+  "group_virustotal": "VirusTotal API Scanning",
+  "group_manual_labeling": "Manual Labeling",
+  "group_status": "Labeling Status",
+
+  "btn_scan_folders": "Scan Folder Structure",
+  "btn_hash_lookup": "Check Hash Database",
+  "btn_vt_scan": "Scan with VirusTotal",
+  "btn_label_as_malware": "Label as MALWARE",
+  "btn_label_as_benign": "Label as BENIGN",
+
+  "label_api_key": "API Key:",
+  "label_threshold": "Detection Threshold:",
+  "label_rate_limit": "Rate Limit: 4 requests/minute",
+  "placeholder_api_key": "Enter your VirusTotal API key",
+
+  "msg_select_apks": "Please select APKs first",
+  "msg_no_api_key": "Please enter VirusTotal API key",
+  "msg_scanning": "Scanning APKs...",
+  "msg_success": "Operation completed successfully",
+  "msg_error": "An error occurred: {error}",
+
+  "status_imported": "Imported: {count}",
+  "status_malware": "Malware: {count}",
+  "status_benign": "Benign: {count}",
+  "status_unlabeled": "Unlabeled: {count}",
+
+  "export_format": "Export Format:",
+  "export_csv": "CSV (Comma-separated)",
+  "export_json": "JSON",
+  "export_arff": "ARFF (Weka)",
+  "export_excel": "Excel",
+
+  "option_include_apks": "Include APK files in export",
+  "option_include_viz": "Generate visualizations",
+  "option_normalized": "Export normalized features",
+
+  "project_name": "Project Name:",
+  "placeholder_project": "Enter project name",
+
+  "feature_manifest": "Manifest Features",
+  "feature_permissions": "Permissions",
+  "feature_components": "Components",
+  "feature_api_calls": "API Calls",
+  "feature_strings": "String Analysis",
+  "feature_bytecode": "Bytecode Analysis",
+  "feature_native": "Native Libraries",
+
+  "analysis_mode": "Analysis Mode:",
+  "mode_quick": "Quick (Manifest only)",
+  "mode_balanced": "Balanced (Manifest + Bytecode)",
+  "mode_deep": "Deep (Full analysis)",
+
+  "btn_start_analysis": "Start Analysis",
+  "btn_pause": "Pause",
+  "btn_stop": "Stop",
+  "btn_export": "Export Dataset",
+
+  "progress_analyzing": "Analyzing: {current}/{total}",
+  "progress_elapsed": "Elapsed: {time}",
+  "progress_remaining": "Remaining: ~{time}",
+
+  "about_title": "About APKDatasetLab",
+  "about_text": "Professional Android Malware Dataset Builder\n\nVersion: 0.1.0\nAuthor: Muhammed Eminoğlu\nGitHub: github.com/muhammedeminoglu1/APKDatasetLab"
+}

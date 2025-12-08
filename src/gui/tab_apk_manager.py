@@ -1,212 +1,252 @@
 """
-APK Management Tab
+APK Management Tab with workspace integration
 """
 from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QPushButton,
-                             QLabel, QFileDialog, QMessageBox, QToolBar)
+                             QTableWidget, QTableWidgetItem, QFileDialog,
+                             QLabel, QHeaderView, QMessageBox, QCheckBox)
 from PyQt5.QtCore import Qt, pyqtSignal
-from PyQt5.QtGui import QIcon
 from pathlib import Path
-from gui.widgets import APKTableWidget
+
+from core.workspace_manager import WorkspaceManager
 from core.apk_analyzer import APKAnalyzer
+from utils.translator import tr
 
 
 class APKManagerTab(QWidget):
-    """APK Management Tab - Load and manage APK files"""
+    """APK loading and management with workspace"""
 
     # Signal emitted when APK list changes
-    apk_list_changed = pyqtSignal(int)  # Emit total count
+    apk_list_changed = pyqtSignal(int)
 
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.apk_paths = []  # Store APK file paths
+    def __init__(self):
+        super().__init__()
+        self.workspace = WorkspaceManager()
+        self.apk_list = []
         self.init_ui()
 
     def init_ui(self):
         """Initialize UI"""
         layout = QVBoxLayout()
 
-        # Top Toolbar
+        # Top toolbar
         toolbar = self.create_toolbar()
-        layout.addWidget(toolbar)
+        layout.addLayout(toolbar)
 
-        # APK Table
-        self.apk_table = APKTableWidget()
-        self.apk_table.doubleClicked.connect(self.on_row_double_clicked)
-        layout.addWidget(self.apk_table)
+        # APK table
+        self.table = self.create_table()
+        layout.addWidget(self.table)
 
-        # Bottom Info Label
-        self.info_label = QLabel("Total APKs: 0 | Selected: 0")
-        self.info_label.setStyleSheet("padding: 5px; background-color: #f0f0f0;")
+        # Bottom info
+        self.info_label = QLabel(tr('label_total_apks', count=0))
         layout.addWidget(self.info_label)
 
         self.setLayout(layout)
 
-    def create_toolbar(self) -> QToolBar:
-        """Create top toolbar with buttons"""
-        toolbar = QToolBar()
-        toolbar.setMovable(False)
-        toolbar.setStyleSheet("QToolBar { spacing: 5px; padding: 5px; }")
+    def create_toolbar(self) -> QHBoxLayout:
+        """Create toolbar with buttons"""
+        toolbar = QHBoxLayout()
 
-        # Folder Select Button
-        folder_btn = QPushButton("Select Folder")
-        folder_btn.setToolTip("Select folder containing APK files")
-        folder_btn.clicked.connect(self.on_select_folder)
-        toolbar.addWidget(folder_btn)
+        self.btn_folder = QPushButton(tr('btn_select_folder'))
+        self.btn_folder.clicked.connect(self.load_folder)
+        toolbar.addWidget(self.btn_folder)
 
-        toolbar.addSeparator()
+        self.btn_add = QPushButton(tr('btn_add_apk'))
+        self.btn_add.clicked.connect(self.add_apk)
+        toolbar.addWidget(self.btn_add)
 
-        # Add APK Button
-        apk_btn = QPushButton("Add APK")
-        apk_btn.setToolTip("Select individual APK file")
-        apk_btn.clicked.connect(self.on_add_apk)
-        toolbar.addWidget(apk_btn)
+        self.btn_clear = QPushButton(tr('btn_clear_list'))
+        self.btn_clear.clicked.connect(self.clear_list)
+        toolbar.addWidget(self.btn_clear)
 
-        toolbar.addSeparator()
-
-        # Clear Button
-        clear_btn = QPushButton("Clear")
-        clear_btn.setToolTip("Clear all APKs from list")
-        clear_btn.clicked.connect(self.on_clear)
-        toolbar.addWidget(clear_btn)
-
+        toolbar.addStretch()
         return toolbar
 
-    def on_select_folder(self):
-        """Handle folder selection - recursively find APK files"""
-        folder = QFileDialog.getExistingDirectory(
-            self,
-            "Select Folder Containing APK Files",
-            "",
-            QFileDialog.ShowDirsOnly
-        )
+    def create_table(self) -> QTableWidget:
+        """Create APK table"""
+        table = QTableWidget()
+        table.setColumnCount(6)
+        table.setHorizontalHeaderLabels([
+            tr('col_checkbox'),
+            tr('col_filename'),
+            tr('col_label'),
+            tr('col_family'),
+            tr('col_size'),
+            tr('col_path')
+        ])
 
-        if folder:
-            self.load_apks_from_folder(folder)
+        # Column widths
+        table.setColumnWidth(0, 40)
+        table.setColumnWidth(1, 200)
+        table.setColumnWidth(2, 100)
+        table.setColumnWidth(3, 100)
+        table.setColumnWidth(4, 100)
+        table.horizontalHeader().setStretchLastSection(True)
 
-    def load_apks_from_folder(self, folder_path: str):
-        """Recursively load all APK files from folder"""
-        try:
-            folder = Path(folder_path)
-            apk_files = list(folder.rglob("*.apk"))
+        table.setAlternatingRowColors(True)
+        table.setSelectionBehavior(QTableWidget.SelectRows)
+        table.setEditTriggers(QTableWidget.NoEditTriggers)
+
+        return table
+
+    def load_folder(self):
+        """Load APKs from folder"""
+        folder_path = QFileDialog.getExistingDirectory(self, tr('btn_select_folder'))
+
+        if folder_path:
+            apk_files = list(Path(folder_path).rglob('*.apk'))
 
             if not apk_files:
-                QMessageBox.information(
-                    self,
-                    "No APKs Found",
-                    f"No APK files found in:\n{folder_path}"
-                )
+                QMessageBox.warning(self, "Warning", "No APK files found in selected folder")
                 return
 
-            # Add APKs to table
-            for apk_path in apk_files:
-                self.add_apk_to_table(str(apk_path))
+            # Import to workspace
+            for apk_file in apk_files:
+                try:
+                    imported_path = self.workspace.import_apk(apk_file)
+                    self.add_apk_to_table(imported_path)
+                except Exception as e:
+                    print(f"Error importing {apk_file.name}: {e}")
 
             self.update_info_label()
+            self.apk_list_changed.emit(len(self.apk_list))
+            QMessageBox.information(self, "Success",
+                                   f"Imported {len(apk_files)} APK files")
 
-            QMessageBox.information(
-                self,
-                "APKs Loaded",
-                f"Successfully loaded {len(apk_files)} APK files"
-            )
-
-        except Exception as e:
-            QMessageBox.critical(
-                self,
-                "Error",
-                f"Error loading APKs from folder:\n{str(e)}"
-            )
-
-    def on_add_apk(self):
-        """Handle individual APK file selection"""
-        file_path, _ = QFileDialog.getOpenFileName(
-            self,
-            "Select APK File",
-            "",
-            "APK Files (*.apk);;All Files (*)"
-        )
+    def add_apk(self):
+        """Add single APK"""
+        file_path, _ = QFileDialog.getOpenFileName(self, tr('btn_add_apk'),
+                                                     "", "APK Files (*.apk)")
 
         if file_path:
-            self.add_apk_to_table(file_path)
-            self.update_info_label()
+            try:
+                imported_path = self.workspace.import_apk(file_path)
+                self.add_apk_to_table(imported_path)
+                self.update_info_label()
+                self.apk_list_changed.emit(len(self.apk_list))
+            except Exception as e:
+                QMessageBox.critical(self, "Error", str(e))
 
-    def add_apk_to_table(self, apk_path: str):
-        """Add APK to table with basic info"""
-        try:
-            # Avoid duplicates
-            if apk_path in self.apk_paths:
-                return
+    def add_apk_to_table(self, apk_path: Path):
+        """Add APK to table"""
+        # Get label from workspace
+        label, family = self.workspace.get_apk_label(apk_path.name)
 
-            self.apk_paths.append(apk_path)
+        # Calculate size
+        size_mb = apk_path.stat().st_size / (1024 * 1024)
 
-            # Get APK info
-            analyzer = APKAnalyzer(apk_path)
-            filename = Path(apk_path).name
-            size_mb = analyzer.get_file_size_mb()
+        # Add row
+        row = self.table.rowCount()
+        self.table.insertRow(row)
 
-            # Add to table
-            self.apk_table.add_apk_row(
-                filename=filename,
-                label="UNKNOWN",
-                size_mb=size_mb,
-                path=apk_path
-            )
+        # Checkbox
+        checkbox = QCheckBox()
+        checkbox.setChecked(True)
+        checkbox_widget = QWidget()
+        checkbox_layout = QHBoxLayout(checkbox_widget)
+        checkbox_layout.addWidget(checkbox)
+        checkbox_layout.setAlignment(Qt.AlignCenter)
+        checkbox_layout.setContentsMargins(0, 0, 0, 0)
+        self.table.setCellWidget(row, 0, checkbox_widget)
 
-        except Exception as e:
-            print(f"Error adding APK to table: {e}")
-            QMessageBox.warning(
-                self,
-                "Warning",
-                f"Could not add APK:\n{apk_path}\n\nError: {str(e)}"
-            )
+        # Data
+        self.table.setItem(row, 1, QTableWidgetItem(apk_path.name))
+        self.table.setItem(row, 2, QTableWidgetItem(label))
+        self.table.setItem(row, 3, QTableWidgetItem(family or '-'))
+        self.table.setItem(row, 4, QTableWidgetItem(f"{size_mb:.2f}"))
+        self.table.setItem(row, 5, QTableWidgetItem(str(apk_path)))
 
-    def on_clear(self):
-        """Clear all APKs from table"""
-        reply = QMessageBox.question(
-            self,
-            "Clear APK List",
-            "Are you sure you want to clear all APKs from the list?",
-            QMessageBox.Yes | QMessageBox.No,
-            QMessageBox.No
-        )
+        # Store in list
+        self.apk_list.append({
+            'filename': apk_path.name,
+            'path': str(apk_path),
+            'label': label,
+            'family': family,
+            'size_mb': size_mb
+        })
+
+    def clear_list(self):
+        """Clear APK list"""
+        reply = QMessageBox.question(self, 'Confirm',
+                                     'Clear all APKs from list?',
+                                     QMessageBox.Yes | QMessageBox.No)
 
         if reply == QMessageBox.Yes:
-            self.apk_table.clear_all()
-            self.apk_paths.clear()
+            self.table.setRowCount(0)
+            self.apk_list.clear()
             self.update_info_label()
+            self.apk_list_changed.emit(0)
 
     def update_info_label(self):
-        """Update bottom info label with counts"""
-        total = self.apk_table.rowCount()
-        selected = self.apk_table.get_selected_count()
-        self.info_label.setText(f"Total APKs: {total} | Selected: {selected}")
-        self.apk_list_changed.emit(total)
-
-    def on_row_double_clicked(self, index):
-        """Handle double-click on table row - show APK info dialog"""
-        row = index.row()
-        filename = self.apk_table.item(row, 1).text()
-        size = self.apk_table.item(row, 3).text()
-        path = self.apk_table.item(row, 4).text()
-
-        info_text = f"Filename: {filename}\n"
-        info_text += f"Size: {size} MB\n"
-        info_text += f"Path: {path}"
-
-        QMessageBox.information(
-            self,
-            "APK Information",
-            info_text
+        """Update info label"""
+        count = len(self.apk_list)
+        selected = self.get_selected_count()
+        self.info_label.setText(
+            f"{tr('label_total_apks', count=count)} | {tr('label_selected', count=selected)}"
         )
 
-    def get_selected_apk_paths(self) -> list:
-        """Get list of selected APK paths"""
-        selected_paths = []
-        for row in range(self.apk_table.rowCount()):
-            checkbox_widget = self.apk_table.cellWidget(row, 0)
+    def get_selected_count(self) -> int:
+        """Get count of selected APKs"""
+        count = 0
+        for row in range(self.table.rowCount()):
+            checkbox_widget = self.table.cellWidget(row, 0)
             if checkbox_widget:
-                from PyQt5.QtWidgets import QCheckBox
                 checkbox = checkbox_widget.findChild(QCheckBox)
                 if checkbox and checkbox.isChecked():
-                    path = self.apk_table.item(row, 4).text()
-                    selected_paths.append(path)
-        return selected_paths
+                    count += 1
+        return count
+
+    def get_selected_apks(self) -> list:
+        """Get list of selected APK filenames"""
+        selected = []
+        for row in range(self.table.rowCount()):
+            checkbox_widget = self.table.cellWidget(row, 0)
+            if checkbox_widget:
+                checkbox = checkbox_widget.findChild(QCheckBox)
+                if checkbox and checkbox.isChecked():
+                    filename = self.table.item(row, 1).text()
+                    selected.append(filename)
+        return selected
+
+    def update_apk_label(self, filename: str, label: str, family: str = None):
+        """Update APK label in table"""
+        for row in range(self.table.rowCount()):
+            if self.table.item(row, 1).text() == filename:
+                self.table.setItem(row, 2, QTableWidgetItem(label))
+                self.table.setItem(row, 3, QTableWidgetItem(family or '-'))
+
+                # Color code
+                label_item = self.table.item(row, 2)
+                if label == 'MALWARE':
+                    label_item.setBackground(Qt.red)
+                    label_item.setForeground(Qt.white)
+                elif label == 'BENIGN':
+                    label_item.setBackground(Qt.green)
+                    label_item.setForeground(Qt.white)
+                break
+
+        # Update in list
+        for apk in self.apk_list:
+            if apk['filename'] == filename:
+                apk['label'] = label
+                apk['family'] = family
+                break
+
+    def refresh_translations(self):
+        """Refresh UI text after language change"""
+        # Toolbar buttons
+        self.btn_folder.setText(tr('btn_select_folder'))
+        self.btn_add.setText(tr('btn_add_apk'))
+        self.btn_clear.setText(tr('btn_clear_list'))
+
+        # Table headers
+        self.table.setHorizontalHeaderLabels([
+            tr('col_checkbox'),
+            tr('col_filename'),
+            tr('col_label'),
+            tr('col_family'),
+            tr('col_size'),
+            tr('col_path')
+        ])
+
+        # Info label
+        self.update_info_label()

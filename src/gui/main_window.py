@@ -1,125 +1,143 @@
 """
-Main Window for APKDatasetLab
+Main application window with multi-language support
 """
 from PyQt5.QtWidgets import (QMainWindow, QTabWidget, QAction, QMessageBox,
-                             QStatusBar, QWidget)
+                             QWidget, QVBoxLayout)
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QIcon
+
 from gui.tab_apk_manager import APKManagerTab
 from gui.tab_labeling import LabelingTab
 from gui.tab_features import FeaturesTab
-from gui.tab_virustotal import VirusTotalTab
 from gui.tab_analysis import AnalysisTab
 from gui.tab_export import ExportTab
+from utils.translator import tr, change_language, get_translator
 
 
 class MainWindow(QMainWindow):
-    """Main application window"""
+    """Main application window with 5 tabs"""
 
     def __init__(self):
         super().__init__()
         self.init_ui()
 
+        # Connect to language changes
+        translator = get_translator()
+        translator.language_changed.connect(self.refresh_ui)
+
     def init_ui(self):
-        """Initialize UI"""
-        # Window settings
-        self.setWindowTitle("APKDatasetLab - Android Malware Dataset Builder v0.1")
+        """Initialize user interface"""
+        self.setWindowTitle(tr('app_title'))
         self.setGeometry(100, 100, 1200, 800)
-        self.center_window()
+        self.center_on_screen()
+
+        # Create tabs
+        self.tabs = QTabWidget()
+        self.create_tabs()
+        self.setCentralWidget(self.tabs)
 
         # Create menu bar
         self.create_menu_bar()
 
-        # Create tab widget
-        self.tabs = QTabWidget()
-        self.setCentralWidget(self.tabs)
+        # Status bar
+        self.statusBar().showMessage(tr('msg_success'))
 
-        # Create tabs
-        self.create_tabs()
+    def create_tabs(self):
+        """Create all tabs (5 tabs, not 6)"""
+        # Tab 1: APK Management
+        self.tab_apk = APKManagerTab()
+        self.tabs.addTab(self.tab_apk, tr('tab_apk_management'))
 
-        # Create status bar
-        self.status_bar = QStatusBar()
-        self.setStatusBar(self.status_bar)
-        self.status_bar.showMessage("Ready")
+        # Tab 2: Labeling (includes VirusTotal)
+        self.tab_label = LabelingTab()
+        self.tab_label.parent_window = self
+        self.tabs.addTab(self.tab_label, tr('tab_labeling'))
 
-    def center_window(self):
-        """Center window on screen"""
-        from PyQt5.QtWidgets import QDesktopWidget
-        qt_rectangle = self.frameGeometry()
-        center_point = QDesktopWidget().availableGeometry().center()
-        qt_rectangle.moveCenter(center_point)
-        self.move(qt_rectangle.topLeft())
+        # Tab 3: Feature Selection
+        self.tab_features = FeaturesTab()
+        self.tabs.addTab(self.tab_features, tr('tab_features'))
+
+        # Tab 4: Analysis & Processing
+        self.tab_analysis = AnalysisTab()
+        self.tab_analysis.set_apk_table(self.tab_apk.table)
+        self.tab_analysis.set_features_tab(self.tab_features)
+        self.tabs.addTab(self.tab_analysis, tr('tab_analysis'))
+
+        # Tab 5: Export Dataset
+        self.tab_export = ExportTab()
+        self.tab_export.set_analysis_tab(self.tab_analysis)
+        self.tabs.addTab(self.tab_export, tr('tab_export'))
 
     def create_menu_bar(self):
-        """Create menu bar"""
+        """Initialize menu bar"""
         menubar = self.menuBar()
 
-        # File Menu
-        file_menu = menubar.addMenu("File")
+        # File menu
+        file_menu = menubar.addMenu(tr('menu_file'))
 
-        exit_action = QAction("Exit", self)
-        exit_action.setShortcut("Ctrl+Q")
-        exit_action.setStatusTip("Exit application")
+        exit_action = QAction(tr('menu_exit'), self)
+        exit_action.setShortcut('Ctrl+Q')
         exit_action.triggered.connect(self.close)
         file_menu.addAction(exit_action)
 
-        # Help Menu
-        help_menu = menubar.addMenu("Help")
+        # Language menu
+        language_menu = menubar.addMenu(tr('menu_language'))
 
-        about_action = QAction("About", self)
-        about_action.setStatusTip("About APKDatasetLab")
+        en_action = QAction('English 🇬🇧', self)
+        en_action.triggered.connect(lambda: self.change_language('en'))
+        language_menu.addAction(en_action)
+
+        tr_action = QAction('Türkçe 🇹🇷', self)
+        tr_action.triggered.connect(lambda: self.change_language('tr'))
+        language_menu.addAction(tr_action)
+
+        # Help menu
+        help_menu = menubar.addMenu(tr('menu_help'))
+
+        about_action = QAction(tr('menu_about'), self)
         about_action.triggered.connect(self.show_about)
         help_menu.addAction(about_action)
 
-    def create_tabs(self):
-        """Create all tabs"""
-        # Tab 1: APK Management
-        self.apk_manager_tab = APKManagerTab()
-        self.apk_manager_tab.apk_list_changed.connect(self.on_apk_list_changed)
-        self.tabs.addTab(self.apk_manager_tab, "1. APK Management")
+    def change_language(self, lang: str):
+        """Change application language"""
+        change_language(lang)
+        # UI will be updated via language_changed signal
 
-        # Tab 2: Labeling
-        self.labeling_tab = LabelingTab()
-        self.labeling_tab.set_apk_table(self.apk_manager_tab.apk_table)
-        self.tabs.addTab(self.labeling_tab, "2. Labeling")
+    def refresh_ui(self):
+        """Refresh all UI text after language change"""
+        # Window title
+        self.setWindowTitle(tr('app_title'))
 
-        # Tab 3: VirusTotal & Organization
-        self.virustotal_tab = VirusTotalTab()
-        self.virustotal_tab.set_apk_table(self.apk_manager_tab.apk_table)
-        self.tabs.addTab(self.virustotal_tab, "3. VirusTotal Scanner")
+        # Menu bar
+        self.menuBar().clear()
+        self.create_menu_bar()
 
-        # Tab 4: Feature Selection
-        self.features_tab = FeaturesTab()
-        self.tabs.addTab(self.features_tab, "4. Feature Selection")
+        # Tab titles
+        self.tabs.setTabText(0, tr('tab_apk_management'))
+        self.tabs.setTabText(1, tr('tab_labeling'))
+        self.tabs.setTabText(2, tr('tab_features'))
+        self.tabs.setTabText(3, tr('tab_analysis'))
+        self.tabs.setTabText(4, tr('tab_export'))
 
-        # Tab 5: Analysis & Processing
-        self.analysis_tab = AnalysisTab()
-        self.analysis_tab.set_apk_table(self.apk_manager_tab.apk_table)
-        self.analysis_tab.set_features_tab(self.features_tab)
-        self.tabs.addTab(self.analysis_tab, "5. Analysis & Processing")
+        # Refresh each tab
+        for i in range(self.tabs.count()):
+            widget = self.tabs.widget(i)
+            if hasattr(widget, 'refresh_translations'):
+                widget.refresh_translations()
 
-        # Tab 6: Export Dataset
-        self.export_tab = ExportTab()
-        self.export_tab.set_analysis_tab(self.analysis_tab)
-        self.tabs.addTab(self.export_tab, "6. Export Dataset")
+        # Status bar
+        self.statusBar().showMessage(tr('msg_success'))
+
+    def center_on_screen(self):
+        """Center window on screen"""
+        frame_geometry = self.frameGeometry()
+        screen_center = self.screen().availableGeometry().center()
+        frame_geometry.moveCenter(screen_center)
+        self.move(frame_geometry.topLeft())
 
     def show_about(self):
         """Show about dialog"""
-        about_text = """
-        <h2>APKDatasetLab</h2>
-        <p>Version: 0.1.0</p>
-        <p>Professional Android Malware Dataset Builder</p>
-        <p>Built with PyQt5 and Androguard</p>
-        <hr>
-        <p><b>Author:</b> Muhammed Eminolu</p>
-        <p><b>GitHub:</b> <a href="https://github.com/muhammedeminoglu1/APKDatasetLab">
-        https://github.com/muhammedeminoglu1/APKDatasetLab</a></p>
-        """
-        QMessageBox.about(self, "About APKDatasetLab", about_text)
-
-    def on_apk_list_changed(self, count: int):
-        """Handle APK list changes"""
-        self.status_bar.showMessage(f"Total APKs loaded: {count}")
+        QMessageBox.about(self, tr('about_title'), tr('about_text'))
 
     def closeEvent(self, event):
         """Handle window close event"""
