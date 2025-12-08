@@ -223,3 +223,7 @@ data/cache/
 # Config
 config/config.yaml
 !config/config.yaml.example
+
+# Workspace (large files)
+workspace/
+exports/

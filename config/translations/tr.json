@@ -1,0 +1,101 @@
+{
+  "app_title": "APKDatasetLab - Android Zararlı Yazılım Veri Seti Oluşturucu v0.1",
+  "menu_file": "Dosya",
+  "menu_exit": "Çıkış",
+  "menu_language": "Dil",
+  "menu_help": "Yardım",
+  "menu_about": "Hakkında",
+
+  "tab_apk_management": "APK Yönetimi",
+  "tab_labeling": "Etiketleme ve Sınıflandırma",
+  "tab_features": "Öznitelik Seçimi",
+  "tab_analysis": "Analiz ve İşleme",
+  "tab_export": "Veri Seti Dışa Aktar",
+
+  "btn_select_folder": "Klasör Seç",
+  "btn_add_apk": "APK Ekle",
+  "btn_clear_list": "Listeyi Temizle",
+  "btn_remove_selected": "Seçilenleri Kaldır",
+  "btn_import_list": "Liste İçe Aktar",
+  "btn_export_list": "Liste Dışa Aktar",
+
+  "label_total_apks": "Toplam APK: {count}",
+  "label_selected": "Seçili: {count}",
+  "label_malware": "Zararlı",
+  "label_benign": "Zararsız",
+  "label_unlabeled": "Etiketlenmemiş",
+  "label_unknown": "Bilinmeyen",
+
+  "col_checkbox": "✓",
+  "col_filename": "Dosya Adı",
+  "col_label": "Etiket",
+  "col_family": "Aile",
+  "col_size": "Boyut (MB)",
+  "col_path": "Yol",
+
+  "group_folder_labeling": "Klasör Tabanlı Etiketleme",
+  "group_hash_labeling": "Hash Veritabanı Etiketleme",
+  "group_virustotal": "VirusTotal API Tarama",
+  "group_manual_labeling": "Manuel Etiketleme",
+  "group_status": "Etiketleme Durumu",
+
+  "btn_scan_folders": "Klasör Yapısını Tara",
+  "btn_hash_lookup": "Hash Veritabanı Kontrol",
+  "btn_vt_scan": "VirusTotal ile Tara",
+  "btn_label_as_malware": "ZARARLI Olarak Etiketle",
+  "btn_label_as_benign": "ZARARSIZ Olarak Etiketle",
+
+  "label_api_key": "API Anahtarı:",
+  "label_threshold": "Tespit Eşiği:",
+  "label_rate_limit": "Hız Sınırı: 4 istek/dakika",
+  "placeholder_api_key": "VirusTotal API anahtarınızı girin",
+
+  "msg_select_apks": "Lütfen önce APK seçin",
+  "msg_no_api_key": "Lütfen VirusTotal API anahtarı girin",
+  "msg_scanning": "APK'lar taranıyor...",
+  "msg_success": "İşlem başarıyla tamamlandı",
+  "msg_error": "Bir hata oluştu: {error}",
+
+  "status_imported": "İçe Aktarılan: {count}",
+  "status_malware": "Zararlı: {count}",
+  "status_benign": "Zararsız: {count}",
+  "status_unlabeled": "Etiketlenmemiş: {count}",
+
+  "export_format": "Dışa Aktarma Formatı:",
+  "export_csv": "CSV (Virgülle ayrılmış)",
+  "export_json": "JSON",
+  "export_arff": "ARFF (Weka)",
+  "export_excel": "Excel",
+
+  "option_include_apks": "APK dosyalarını dışa aktarmaya dahil et",
+  "option_include_viz": "Görselleştirmeler oluştur",
+  "option_normalized": "Normalize edilmiş özellikleri dışa aktar",
+
+  "project_name": "Proje Adı:",
+  "placeholder_project": "Proje adı girin",
+
+  "feature_manifest": "Manifest Özellikleri",
+  "feature_permissions": "İzinler",
+  "feature_components": "Bileşenler",
+  "feature_api_calls": "API Çağrıları",
+  "feature_strings": "String Analizi",
+  "feature_bytecode": "Bytecode Analizi",
+  "feature_native": "Native Kütüphaneler",
+
+  "analysis_mode": "Analiz Modu:",
+  "mode_quick": "Hızlı (Sadece manifest)",
+  "mode_balanced": "Dengeli (Manifest + Bytecode)",
+  "mode_deep": "Derin (Tam analiz)",
+
+  "btn_start_analysis": "Analizi Başlat",
+  "btn_pause": "Duraklat",
+  "btn_stop": "Durdur",
+  "btn_export": "Veri Setini Dışa Aktar",
+
+  "progress_analyzing": "Analiz Ediliyor: {current}/{total}",
+  "progress_elapsed": "Geçen: {time}",
+  "progress_remaining": "Kalan: ~{time}",
+
+  "about_title": "APKDatasetLab Hakkında",
+  "about_text": "Profesyonel Android Zararlı Yazılım Veri Seti Oluşturucu\n\nSürüm: 0.1.0\nYazar: Muhammed Eminoğlu\nGitHub: github.com/muhammedeminoglu1/APKDatasetLab"
+}
