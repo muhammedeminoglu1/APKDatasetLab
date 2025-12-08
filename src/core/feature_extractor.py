@@ -4,6 +4,8 @@ Feature Extraction Engine - Extract 80+ features from APK files
 from typing import Dict, List, Set
 import re
 from collections import Counter
+import sqlite3
+from pathlib import Path
 
 
 class FeatureExtractor:
@@ -284,3 +286,132 @@ class FeatureExtractor:
             return self.features
 
         return {k: v for k, v in self.features.items() if k in selected_features}
+
+    def cache_features(self, filename: str, features: Dict[str, any], workspace_path: str = 'workspace') -> bool:
+        """
+        Cache extracted features to SQLite database
+
+        Args:
+            filename: APK filename
+            features: Extracted features dictionary
+            workspace_path: Workspace directory path
+
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            # Create cache directory and database path
+            cache_dir = Path(workspace_path) / 'cache'
+            cache_dir.mkdir(parents=True, exist_ok=True)
+            db_path = cache_dir / 'features_cache.db'
+
+            # Connect to database
+            conn = sqlite3.connect(str(db_path))
+            cursor = conn.cursor()
+
+            # Create table if not exists
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS features (
+                    filename TEXT PRIMARY KEY,
+                    extraction_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            ''')
+
+            # Add columns dynamically for each feature
+            cursor.execute("PRAGMA table_info(features)")
+            existing_columns = {row[1] for row in cursor.fetchall()}
+
+            for feature_name in features.keys():
+                if feature_name not in existing_columns:
+                    # Determine SQLite type based on Python type
+                    feature_value = features[feature_name]
+                    if isinstance(feature_value, bool):
+                        col_type = 'INTEGER'
+                    elif isinstance(feature_value, int):
+                        col_type = 'INTEGER'
+                    elif isinstance(feature_value, float):
+                        col_type = 'REAL'
+                    else:
+                        col_type = 'TEXT'
+
+                    try:
+                        cursor.execute(f'ALTER TABLE features ADD COLUMN "{feature_name}" {col_type}')
+                    except sqlite3.OperationalError:
+                        # Column already exists
+                        pass
+
+            # Prepare INSERT OR REPLACE statement
+            columns = ['filename'] + list(features.keys())
+            placeholders = ','.join(['?'] * len(columns))
+            column_names = ','.join([f'"{col}"' for col in columns])
+
+            values = [filename] + [
+                1 if isinstance(v, bool) and v else 0 if isinstance(v, bool) else v
+                for v in features.values()
+            ]
+
+            cursor.execute(
+                f'INSERT OR REPLACE INTO features ({column_names}) VALUES ({placeholders})',
+                values
+            )
+
+            conn.commit()
+            conn.close()
+
+            print(f"✓ Cached features for {filename} to database")
+            return True
+
+        except Exception as e:
+            print(f"✗ Error caching features for {filename}: {e}")
+            return False
+
+    def load_cached_features(self, filename: str, workspace_path: str = 'workspace') -> Dict[str, any]:
+        """
+        Load cached features from SQLite database
+
+        Args:
+            filename: APK filename
+            workspace_path: Workspace directory path
+
+        Returns:
+            Dictionary of features or empty dict if not found
+        """
+        try:
+            db_path = Path(workspace_path) / 'cache' / 'features_cache.db'
+
+            if not db_path.exists():
+                return {}
+
+            conn = sqlite3.connect(str(db_path))
+            cursor = conn.cursor()
+
+            # Get column names
+            cursor.execute("PRAGMA table_info(features)")
+            columns = [row[1] for row in cursor.fetchall() if row[1] not in ['filename', 'extraction_date']]
+
+            # Query features
+            cursor.execute(f'SELECT * FROM features WHERE filename = ?', (filename,))
+            row = cursor.fetchone()
+
+            conn.close()
+
+            if row:
+                # Get all column names
+                cursor = conn.cursor()
+                cursor.execute("PRAGMA table_info(features)")
+                all_columns = [r[1] for r in cursor.fetchall()]
+
+                # Create dictionary
+                features = {}
+                for i, col_name in enumerate(all_columns):
+                    if col_name not in ['filename', 'extraction_date']:
+                        features[col_name] = row[i]
+
+                print(f"✓ Loaded cached features for {filename}")
+                return features
+
+            return {}
+
+        except Exception as e:
+            print(f"✗ Error loading cached features for {filename}: {e}")
+            return {}
