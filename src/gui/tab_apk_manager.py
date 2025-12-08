@@ -48,7 +48,7 @@ class APKManagerTab(QWidget):
         toolbar.setStyleSheet("QToolBar { spacing: 5px; padding: 5px; }")
 
         # Folder Select Button
-        folder_btn = QPushButton("=Á Select Folder")
+        folder_btn = QPushButton("Select Folder")
         folder_btn.setToolTip("Select folder containing APK files")
         folder_btn.clicked.connect(self.on_select_folder)
         toolbar.addWidget(folder_btn)
@@ -56,7 +56,7 @@ class APKManagerTab(QWidget):
         toolbar.addSeparator()
 
         # Add APK Button
-        apk_btn = QPushButton("=Ä Add APK")
+        apk_btn = QPushButton("Add APK")
         apk_btn.setToolTip("Select individual APK file")
         apk_btn.clicked.connect(self.on_add_apk)
         toolbar.addWidget(apk_btn)
@@ -64,7 +64,7 @@ class APKManagerTab(QWidget):
         toolbar.addSeparator()
 
         # Clear Button
-        clear_btn = QPushButton("=Ñ Clear")
+        clear_btn = QPushButton("Clear")
         clear_btn.setToolTip("Clear all APKs from list")
         clear_btn.clicked.connect(self.on_clear)
         toolbar.addWidget(clear_btn)

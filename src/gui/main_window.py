@@ -8,6 +8,7 @@ from PyQt5.QtGui import QIcon
 from gui.tab_apk_manager import APKManagerTab
 from gui.tab_labeling import LabelingTab
 from gui.tab_features import FeaturesTab
+from gui.tab_virustotal import VirusTotalTab
 from gui.tab_analysis import AnalysisTab
 from gui.tab_export import ExportTab
 
@@ -79,19 +80,28 @@ class MainWindow(QMainWindow):
 
         # Tab 2: Labeling
         self.labeling_tab = LabelingTab()
+        self.labeling_tab.set_apk_table(self.apk_manager_tab.apk_table)
         self.tabs.addTab(self.labeling_tab, "2. Labeling")
 
-        # Tab 3: Feature Selection
+        # Tab 3: VirusTotal & Organization
+        self.virustotal_tab = VirusTotalTab()
+        self.virustotal_tab.set_apk_table(self.apk_manager_tab.apk_table)
+        self.tabs.addTab(self.virustotal_tab, "3. VirusTotal Scanner")
+
+        # Tab 4: Feature Selection
         self.features_tab = FeaturesTab()
-        self.tabs.addTab(self.features_tab, "3. Feature Selection")
+        self.tabs.addTab(self.features_tab, "4. Feature Selection")
 
-        # Tab 4: Analysis & Processing
+        # Tab 5: Analysis & Processing
         self.analysis_tab = AnalysisTab()
-        self.tabs.addTab(self.analysis_tab, "4. Analysis & Processing")
+        self.analysis_tab.set_apk_table(self.apk_manager_tab.apk_table)
+        self.analysis_tab.set_features_tab(self.features_tab)
+        self.tabs.addTab(self.analysis_tab, "5. Analysis & Processing")
 
-        # Tab 5: Export Dataset
+        # Tab 6: Export Dataset
         self.export_tab = ExportTab()
-        self.tabs.addTab(self.export_tab, "5. Export Dataset")
+        self.export_tab.set_analysis_tab(self.analysis_tab)
+        self.tabs.addTab(self.export_tab, "6. Export Dataset")
 
     def show_about(self):
         """Show about dialog"""
