@@ -282,3 +282,9 @@ class FeaturesTab(QWidget):
     def get_selected_features(self) -> list:
         """Get list of selected features"""
         return list(self.selected_features)
+
+    def refresh_translations(self):
+        """Refresh UI text after language change"""
+        # Feature names are technical terms, no translation needed
+        # Just update the count label
+        self.update_selected_features()

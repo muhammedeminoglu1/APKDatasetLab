@@ -338,3 +338,9 @@ class ExportTab(QWidget):
                         features.append(f"{feat_idx}:{value}")
 
                 f.write(f"{label} {' '.join(features)}\n")
+
+    def refresh_translations(self):
+        """Refresh UI text after language change"""
+        # This tab has minimal translatable content
+        # Most labels are format names (CSV, JSON, etc.) which don't need translation
+        pass
