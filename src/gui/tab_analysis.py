@@ -54,6 +54,9 @@ class FeatureExtractionWorker(QThread):
                     extractor = FeatureExtractor(apk_path)
                     features = extractor.extract_all_features()
 
+                    # Cache features to database
+                    extractor.cache_features(filename, features)
+
                     # Filter selected features
                     if self.selected_features:
                         features = {k: v for k, v in features.items()
