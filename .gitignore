@@ -205,3 +205,21 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# APKDatasetLab specific
+# PyQt5
+*.ui.autosave
+
+# Data
+data/*.apk
+data/*.db
+data/exports/
+data/cache/
+
+# IDE
+.idea/
+*.swp
+
+# Config
+config/config.yaml
+!config/config.yaml.example

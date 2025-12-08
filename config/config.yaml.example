@@ -1,0 +1,57 @@
+# APKDatasetLab Configuration
+
+application:
+  name: "APKDatasetLab"
+  version: "0.1.0"
+  log_level: "INFO"
+
+paths:
+  data_dir: "./data"
+  cache_dir: "./data/cache"
+  exports_dir: "./data/exports"
+  hash_db: "./data/hash_database.db"
+
+analysis:
+  default_mode: "balanced"  # quick, balanced, deep
+  enable_threading: true
+  max_threads: 4
+  timeout_per_apk: 60  # seconds
+
+labeling:
+  auto_folder_labeling: true
+  auto_hash_lookup: true
+  virustotal:
+    enabled: false
+    api_key: ""
+    threshold: 0.20
+    rate_limit_delay: 15
+
+features:
+  manifest:
+    permissions: true
+    components: true
+    intent_filters: true
+    hardware_features: true
+
+  bytecode:
+    dex_stats: true
+    opcode_distribution: false
+
+  api_calls:
+    suspicious_apis: true
+    api_frequency: false
+
+  strings:
+    url_detection: true
+    suspicious_strings: true
+
+  native:
+    library_detection: true
+
+normalization:
+  permissions: "one_hot"  # one_hot, binary, frequency
+  counts: "minmax"  # minmax, zscore, raw
+
+export:
+  default_format: "csv"  # csv, json, excel
+  include_visualizations: true
