@@ -325,3 +325,8 @@ class AnalysisTab(QWidget):
     def get_extracted_dataframe(self) -> pd.DataFrame:
         """Get extracted DataFrame"""
         return self.extracted_df
+
+    def refresh_translations(self):
+        """Refresh UI text after language change"""
+        # Technical analysis UI, minimal translation needed
+        pass
