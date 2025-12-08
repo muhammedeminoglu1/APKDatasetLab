@@ -23,32 +23,61 @@ class VirusTotalThread(QThread):
         self.api_key = api_key
         self.threshold = threshold
         self.apk_list = apk_list
-        self.scanner = VirusTotalScanner(api_key, threshold)
+        self.scanner = VirusTotalScanner(api_key)
 
     def run(self):
         workspace = WorkspaceManager()
 
         for i, apk_file in enumerate(self.apk_list):
-            # Scan
-            result = self.scanner.scan_apk(apk_file)
+            try:
+                # Calculate file hash
+                file_hash = self.scanner.calculate_file_hash(apk_file)
 
-            # Organize
-            if result['label'] != 'UNKNOWN':
-                try:
-                    workspace.organize_apk(
-                        Path(apk_file).name,
-                        result['label'],
-                        result.get('family')
-                    )
-                except Exception as e:
-                    print(f"Error organizing {apk_file}: {e}")
+                # Check if file exists in VirusTotal
+                report = self.scanner.get_file_report(file_hash)
 
-            # Emit result
-            self.result.emit(
-                Path(apk_file).name,
-                result['label'],
-                result.get('family', '-')
-            )
+                if not report:
+                    # File not found, scan it
+                    report = self.scanner.scan_file(apk_file)
+
+                # Parse results
+                if report:
+                    label, family, detections, total = self.scanner.parse_scan_results(report)
+
+                    # Apply threshold
+                    if detections < self.threshold:
+                        label = 'BENIGN'
+                        family = None
+                else:
+                    label = 'UNKNOWN'
+                    family = 'unknown'
+                    detections = 0
+
+                # Organize
+                if label != 'UNKNOWN':
+                    try:
+                        workspace.organize_apk(
+                            Path(apk_file).name,
+                            label,
+                            family
+                        )
+                    except Exception as e:
+                        print(f"Error organizing {apk_file}: {e}")
+
+                # Emit result
+                self.result.emit(
+                    Path(apk_file).name,
+                    label,
+                    family or '-'
+                )
+
+            except Exception as e:
+                print(f"Error scanning {apk_file}: {e}")
+                self.result.emit(
+                    Path(apk_file).name,
+                    'ERROR',
+                    str(e)
+                )
 
             self.progress.emit(i + 1, len(self.apk_list))
 
