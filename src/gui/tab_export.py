@@ -95,6 +95,7 @@ class ExportTab(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.analysis_tab = None
+        self.features_tab = None
         self.worker = None
         self.init_ui()
 
@@ -318,6 +319,10 @@ class ExportTab(QWidget):
         """Set reference to analysis tab"""
         self.analysis_tab = analysis_tab
 
+    def set_features_tab(self, features_tab):
+        """Set reference to features tab"""
+        self.features_tab = features_tab
+
     def browse_output_path(self):
         """Browse for output directory"""
         directory = QFileDialog.getExistingDirectory(
@@ -389,11 +394,9 @@ class ExportTab(QWidget):
             export_config['tabular_format'] = self.format_combo.currentText()
             export_config['split_train_test'] = self.split_train_test.isChecked()
 
-            # Get selected features from analysis tab
-            if self.analysis_tab and hasattr(self.analysis_tab, 'features_tab'):
-                features_tab = self.analysis_tab.features_tab
-                if features_tab:
-                    export_config['selected_features'] = features_tab.get_selected_features()
+            # Get selected features from features tab
+            if self.features_tab:
+                export_config['selected_features'] = self.features_tab.get_selected_features()
 
         # Image options
         if self.export_images_check.isChecked():

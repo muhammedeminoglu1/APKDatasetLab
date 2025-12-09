@@ -8,6 +8,7 @@ from PyQt5.QtGui import QIcon
 
 from gui.tab_apk_manager import APKManagerTab
 from gui.tab_labeling import LabelingTab
+from gui.tab_inspector import InspectorTab
 from gui.tab_features import FeaturesTab
 from gui.tab_analysis import AnalysisTab
 from gui.tab_export import ExportTab
@@ -15,7 +16,7 @@ from utils.translator import tr, change_language, get_translator
 
 
 class MainWindow(QMainWindow):
-    """Main application window with 5 tabs"""
+    """Main application window with 6 tabs"""
 
     def __init__(self):
         super().__init__()
@@ -43,7 +44,7 @@ class MainWindow(QMainWindow):
         self.statusBar().showMessage(tr('msg_success'))
 
     def create_tabs(self):
-        """Create all tabs (5 tabs, not 6)"""
+        """Create all tabs (6 tabs)"""
         # Tab 1: APK Management
         self.tab_apk = APKManagerTab()
         self.tabs.addTab(self.tab_apk, tr('tab_apk_management'))
@@ -53,20 +54,31 @@ class MainWindow(QMainWindow):
         self.tab_label.parent_window = self
         self.tabs.addTab(self.tab_label, tr('tab_labeling'))
 
-        # Tab 3: Feature Selection
+        # Tab 3: APK Inspector (NEW!)
+        self.tab_inspector = InspectorTab()
+        self.tab_inspector.set_apk_list(self.tab_apk.table)
+        self.tabs.addTab(self.tab_inspector, tr('tab_inspector'))
+
+        # Tab 4: Feature Selection
         self.tab_features = FeaturesTab()
         self.tabs.addTab(self.tab_features, tr('tab_features'))
 
-        # Tab 4: Analysis & Processing
+        # Tab 5: Analysis & Processing
         self.tab_analysis = AnalysisTab()
         self.tab_analysis.set_apk_table(self.tab_apk.table)
         self.tab_analysis.set_features_tab(self.tab_features)
         self.tabs.addTab(self.tab_analysis, tr('tab_analysis'))
 
-        # Tab 5: Export Dataset
+        # Tab 6: Export Dataset
         self.tab_export = ExportTab()
         self.tab_export.set_analysis_tab(self.tab_analysis)
+        self.tab_export.set_features_tab(self.tab_features)  # FIX: Add features_tab reference
         self.tabs.addTab(self.tab_export, tr('tab_export'))
+
+        # Connect APK table changes to inspector
+        self.tab_apk.table.itemSelectionChanged.connect(
+            lambda: self.tab_inspector.set_apk_list(self.tab_apk.table)
+        )
 
     def create_menu_bar(self):
         """Initialize menu bar"""
@@ -115,9 +127,10 @@ class MainWindow(QMainWindow):
         # Tab titles
         self.tabs.setTabText(0, tr('tab_apk_management'))
         self.tabs.setTabText(1, tr('tab_labeling'))
-        self.tabs.setTabText(2, tr('tab_features'))
-        self.tabs.setTabText(3, tr('tab_analysis'))
-        self.tabs.setTabText(4, tr('tab_export'))
+        self.tabs.setTabText(2, tr('tab_inspector'))
+        self.tabs.setTabText(3, tr('tab_features'))
+        self.tabs.setTabText(4, tr('tab_analysis'))
+        self.tabs.setTabText(5, tr('tab_export'))
 
         # Refresh each tab
         for i in range(self.tabs.count()):

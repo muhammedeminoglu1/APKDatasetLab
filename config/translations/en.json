@@ -8,6 +8,7 @@
 
   "tab_apk_management": "APK Management",
   "tab_labeling": "Labeling & Classification",
+  "tab_inspector": "APK Inspector",
   "tab_features": "Feature Selection",
   "tab_analysis": "Analysis & Processing",
   "tab_export": "Export Dataset",
