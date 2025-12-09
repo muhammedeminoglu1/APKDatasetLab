@@ -8,7 +8,6 @@ from PyQt5.QtCore import Qt, pyqtSignal
 from pathlib import Path
 
 from core.workspace_manager import WorkspaceManager
-from core.apk_analyzer import APKAnalyzer
 from utils.translator import tr
 
 
