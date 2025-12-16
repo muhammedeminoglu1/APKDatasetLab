@@ -26,27 +26,28 @@ class InspectionWorker(QThread):
     def run(self):
         """Perform deep inspection"""
         try:
-            from androguard.core.apk import APK
+            from androguard.core.bytecodes.apk import APK
             from androguard.misc import AnalyzeAPK
             from core.feature_extractor import FeatureExtractor
 
             # Load APK
             apk = APK(self.apk_path)
-            _, _, dx = AnalyzeAPK(self.apk_path)
+            _, dex_list, dx = AnalyzeAPK(self.apk_path)
 
             # Extract comprehensive information
             results = {
                 'apk': apk,
                 'dx': dx,
+                'dex_list': dex_list,
                 'basic_info': self._extract_basic_info(apk),
                 'permissions': self._extract_permissions(apk),
                 'components': self._extract_components(apk),
-                'api_calls': self._extract_api_calls(dx),
-                'strings': self._extract_strings(dx),
-                'bytecode': self._extract_bytecode_info(dx),
+                'api_calls': self._extract_api_calls(dex_list),
+                'strings': self._extract_strings(dex_list),
+                'bytecode': self._extract_bytecode_info(dex_list),
                 'native_libs': self._extract_native_libs(apk),
                 'certificates': self._extract_certificates(apk),
-                'risk_score': self._calculate_risk_score(apk, dx)
+                'risk_score': self._calculate_risk_score(apk, dex_list)
             }
 
             # Extract features
@@ -102,7 +103,8 @@ class InspectionWorker(QThread):
         providers = apk.get_providers()
 
         # Check for exported components
-        manifest_str = str(apk.get_AndroidManifest())
+        from lxml import etree
+        manifest_str = etree.tostring(apk.get_android_manifest_xml(), encoding='unicode')
 
         return {
             'activities': [{'name': a, 'exported': 'exported="true"' in manifest_str} for a in activities],
@@ -111,18 +113,26 @@ class InspectionWorker(QThread):
             'providers': [{'name': p, 'exported': 'exported="true"' in manifest_str} for p in providers]
         }
 
-    def _extract_api_calls(self, dx) -> Dict:
+    def _extract_api_calls(self, dex_list) -> Dict:
         """Extract suspicious API calls"""
         from core.feature_extractor import FeatureExtractor
 
         suspicious_apis = FeatureExtractor.SUSPICIOUS_APIS
         found_apis = {category: [] for category in suspicious_apis.keys()}
 
-        # Get all strings from DEX
+        # Get all strings from DEX files
         all_strings = []
-        if dx:
-            for dex in dx:
-                all_strings.extend(dex.get_strings())
+        if dex_list:
+            for dex in dex_list:
+                for s in dex.get_strings():
+                    # Convert bytes to string if needed
+                    if isinstance(s, bytes):
+                        try:
+                            all_strings.append(s.decode('utf-8', errors='ignore'))
+                        except:
+                            continue
+                    else:
+                        all_strings.append(str(s))
 
         # Search for suspicious APIs
         for category, apis in suspicious_apis.items():
@@ -133,14 +143,22 @@ class InspectionWorker(QThread):
 
         return found_apis
 
-    def _extract_strings(self, dx) -> Dict:
+    def _extract_strings(self, dex_list) -> Dict:
         """Extract and analyze strings"""
         import re
 
         all_strings = []
-        if dx:
-            for dex in dx:
-                all_strings.extend(dex.get_strings())
+        if dex_list:
+            for dex in dex_list:
+                for s in dex.get_strings():
+                    # Convert bytes to string if needed
+                    if isinstance(s, bytes):
+                        try:
+                            all_strings.append(s.decode('utf-8', errors='ignore'))
+                        except:
+                            continue
+                    else:
+                        all_strings.append(str(s))
 
         # URL detection
         url_pattern = r'https?://[^\s]+'
@@ -168,22 +186,22 @@ class InspectionWorker(QThread):
             'base64': base64_strings[:20]
         }
 
-    def _extract_bytecode_info(self, dx) -> Dict:
+    def _extract_bytecode_info(self, dex_list) -> Dict:
         """Extract bytecode statistics"""
-        if not dx:
+        if not dex_list:
             return {}
 
         total_methods = 0
         total_classes = 0
         total_fields = 0
 
-        for dex in dx:
+        for dex in dex_list:
             total_methods += len(list(dex.get_methods()))
             total_classes += len(list(dex.get_classes()))
             total_fields += len(list(dex.get_fields()))
 
         return {
-            'dex_count': len(dx),
+            'dex_count': len(dex_list),
             'total_methods': total_methods,
             'total_classes': total_classes,
             'total_fields': total_fields,
@@ -234,7 +252,7 @@ class InspectionWorker(QThread):
         except Exception:
             return {'error': 'Could not extract certificate info'}
 
-    def _calculate_risk_score(self, apk, dx) -> Dict:
+    def _calculate_risk_score(self, apk, dex_list) -> Dict:
         """Calculate risk score based on suspicious indicators"""
         score = 0
         reasons = []
@@ -249,9 +267,17 @@ class InspectionWorker(QThread):
 
         # Check for reflection
         all_strings = []
-        if dx:
-            for dex in dx:
-                all_strings.extend(dex.get_strings())
+        if dex_list:
+            for dex in dex_list:
+                for s in dex.get_strings():
+                    # Convert bytes to string if needed
+                    if isinstance(s, bytes):
+                        try:
+                            all_strings.append(s.decode('utf-8', errors='ignore'))
+                        except:
+                            continue
+                    else:
+                        all_strings.append(str(s))
 
         if any('Class.forName' in s or 'getDeclaredMethod' in s for s in all_strings):
             score += 15

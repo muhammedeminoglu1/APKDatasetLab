@@ -43,14 +43,13 @@ class FeatureExtractor:
     def load_apk(self) -> bool:
         """Load APK file"""
         try:
-            from androguard.core.apk import APK
-            from androguard.core.dex import DEX
+            from androguard.core.bytecodes.apk import APK
+            from androguard.core.bytecodes.dex import DEX
             from androguard.misc import AnalyzeAPK
 
             self.apk = APK(self.apk_path)
-            # Get DEX files for bytecode analysis
-            _, _, dx = AnalyzeAPK(self.apk_path)
-            self.dex_files = dx
+            # Get DEX files and Analysis object
+            _, self.dex_files, self.dx = AnalyzeAPK(self.apk_path)
             return True
         except Exception as e:
             print(f"Error loading APK: {e}")
@@ -147,7 +146,9 @@ class FeatureExtractor:
             self.features['num_intent_filters'] = len(self.apk.get_intent_filters('activity', 'main'))
 
             # Exported components
-            exported_activities = sum(1 for a in activities if 'exported="true"' in str(self.apk.get_AndroidManifest()))
+            from lxml import etree
+            manifest_str = etree.tostring(self.apk.get_android_manifest_xml(), encoding='unicode')
+            exported_activities = sum(1 for a in activities if 'exported="true"' in manifest_str)
             self.features['num_exported_activities'] = exported_activities
 
             # Library detection
@@ -165,7 +166,15 @@ class FeatureExtractor:
 
             all_strings = []
             for dex in self.dex_files:
-                all_strings.extend(dex.get_strings())
+                for s in dex.get_strings():
+                    # Convert bytes to string if needed
+                    if isinstance(s, bytes):
+                        try:
+                            all_strings.append(s.decode('utf-8', errors='ignore'))
+                        except:
+                            continue
+                    else:
+                        all_strings.append(str(s))
 
             # Convert to string for searching
             strings_text = ' '.join(all_strings)
@@ -201,7 +210,15 @@ class FeatureExtractor:
 
             all_strings = []
             for dex in self.dex_files:
-                all_strings.extend(dex.get_strings())
+                for s in dex.get_strings():
+                    # Convert bytes to string if needed
+                    if isinstance(s, bytes):
+                        try:
+                            all_strings.append(s.decode('utf-8', errors='ignore'))
+                        except:
+                            continue
+                    else:
+                        all_strings.append(str(s))
 
             # URL detection
             url_pattern = r'https?://[^\s]+'

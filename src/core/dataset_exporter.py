@@ -273,7 +273,7 @@ class DatasetExporter:
             Dictionary with output path
         """
         import json
-        from androguard.core.apk import APK
+        from androguard.core.bytecodes.apk import APK
         from androguard.misc import AnalyzeAPK
 
         from core.workspace_manager import WorkspaceManager
@@ -347,7 +347,7 @@ class DatasetExporter:
 
     def _extract_permission_sequence(self, apk_path: str) -> List[str]:
         """Extract permission sequence from APK"""
-        from androguard.core.apk import APK
+        from androguard.core.bytecodes.apk import APK
 
         apk = APK(apk_path)
         permissions = apk.get_permissions()

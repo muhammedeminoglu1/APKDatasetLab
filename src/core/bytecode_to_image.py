@@ -63,7 +63,7 @@ class BytecodeToImage:
         Returns:
             Bytecode as bytes
         """
-        from androguard.core.apk import APK
+        from androguard.core.bytecodes.apk import APK
         from androguard.misc import AnalyzeAPK
 
         # Get DEX files from APK
