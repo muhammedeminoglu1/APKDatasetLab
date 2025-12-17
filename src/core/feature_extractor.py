@@ -47,13 +47,30 @@ class FeatureExtractor:
             from androguard.core.dex import DEX
             from androguard.misc import AnalyzeAPK
 
+            # Check if file exists
+            apk_file = Path(self.apk_path)
+            if not apk_file.exists():
+                print(f"✗ APK file not found: {self.apk_path}")
+                return False
+
+            # Check file size
+            if apk_file.stat().st_size == 0:
+                print(f"✗ APK file is empty: {self.apk_path}")
+                return False
+
             self.apk = APK(self.apk_path)
             # Get DEX files for bytecode analysis
             _, _, dx = AnalyzeAPK(self.apk_path)
             self.dex_files = dx
             return True
+        except FileNotFoundError as e:
+            print(f"✗ APK file not found: {self.apk_path}")
+            return False
+        except OSError as e:
+            print(f"✗ OS error loading APK (possibly corrupted or invalid path): {e}")
+            return False
         except Exception as e:
-            print(f"Error loading APK: {e}")
+            print(f"✗ Error loading APK {Path(self.apk_path).name}: {type(e).__name__}: {e}")
             return False
 
     def extract_all_features(self) -> Dict[str, any]:
