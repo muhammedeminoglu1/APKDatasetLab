@@ -215,7 +215,7 @@ class DatasetExporter:
                 f.write(f"{label} {' '.join(features)}\n")
 
     def export_images(self, output_path: Path, apk_list: List[str] = None,
-                     image_size: int = 224) -> Dict[str, Path]:
+                     image_size: int = 224, image_method: str = 'raw') -> Dict[str, Path]:
         """
         Export APK bytecode as images for CNN
 
@@ -223,6 +223,7 @@ class DatasetExporter:
             output_path: Output directory path
             apk_list: List of APK filenames to convert (None = all)
             image_size: Output image size (default: 224x224)
+            image_method: Conversion method ('raw', 'rgb_channels', 'markov', 'histogram', 'entropy')
 
         Returns:
             Dictionary with output paths
@@ -250,7 +251,16 @@ class DatasetExporter:
                 label_dir.mkdir(exist_ok=True)
 
                 image_path = label_dir / f"{Path(apk['filename']).stem}.png"
-                converter.convert_apk_to_image(apk['path'], image_path)
+                
+                # Use appropriate conversion method
+                if image_method == 'rgb_channels':
+                    converter.convert_apk_to_rgb_channels(apk['path'], str(image_path))
+                elif image_method == 'raw':
+                    converter.convert_apk_to_image(apk['path'], str(image_path))
+                else:
+                    # For texture-based methods (markov, histogram, entropy)
+                    converter.convert_bytecode_to_texture(apk['path'], str(image_path), method=image_method)
+                
                 exported_count += 1
 
             except Exception as e:

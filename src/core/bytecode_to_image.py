@@ -64,19 +64,43 @@ class BytecodeToImage:
             Bytecode as bytes
         """
         from androguard.core.bytecodes.apk import APK
-        from androguard.misc import AnalyzeAPK
 
         # Get DEX files from APK
         apk = APK(apk_path)
-        dex_files = apk.get_all_dex()
-
-        # Combine all DEX bytecode
-        all_bytecode = b''
-        for dex_name, dex_data in dex_files:
-            all_bytecode += dex_data
-
-        # If no DEX found, use raw APK bytes
-        if not all_bytecode:
+        
+        try:
+            dex_files = apk.get_all_dex()
+            
+            # Combine all DEX bytecode
+            all_bytecode = b''
+            
+            # Handle different return formats from get_all_dex()
+            if dex_files:
+                # Try to iterate - format varies by androguard version
+                try:
+                    for item in dex_files:
+                        # Newer versions return (name, data) tuples
+                        if isinstance(item, tuple) and len(item) == 2:
+                            dex_name, dex_data = item
+                            all_bytecode += dex_data
+                        # Some versions return just bytes
+                        elif isinstance(item, bytes):
+                            all_bytecode += item
+                        # Some versions return dict-like objects
+                        else:
+                            all_bytecode += bytes(item)
+                except TypeError:
+                    # If not iterable, treat as single bytes object
+                    if isinstance(dex_files, bytes):
+                        all_bytecode = dex_files
+            
+            # If no DEX found, use raw APK bytes
+            if not all_bytecode:
+                with open(apk_path, 'rb') as f:
+                    all_bytecode = f.read()
+                    
+        except Exception as e:
+            # Fallback: use raw APK bytes
             with open(apk_path, 'rb') as f:
                 all_bytecode = f.read()
 
@@ -122,6 +146,91 @@ class BytecodeToImage:
         image = Image.fromarray(img_array, mode=self.mode)
 
         return image
+
+    def convert_apk_to_rgb_channels(self, apk_path: str, output_path: str = None) -> Image.Image:
+        """
+        Convert APK to RGB image where each channel represents different data:
+        - Red Channel: Raw APK bytes
+        - Green Channel: DEX bytecode
+        - Blue Channel: AndroidManifest.xml content
+
+        Args:
+            apk_path: Path to APK file
+            output_path: Output image path (optional)
+
+        Returns:
+            PIL Image object (RGB mode)
+        """
+        try:
+            from androguard.core.bytecodes.apk import APK
+            import zipfile
+
+            # Calculate bytes needed per channel
+            bytes_per_channel = self.image_size * self.image_size
+
+            # Extract Red Channel: Raw APK bytes
+            with open(apk_path, 'rb') as f:
+                apk_bytes = f.read(bytes_per_channel)
+            
+            red_channel = np.frombuffer(apk_bytes, dtype=np.uint8)
+            if len(red_channel) < bytes_per_channel:
+                red_channel = np.pad(red_channel, (0, bytes_per_channel - len(red_channel)),
+                                   mode='constant', constant_values=0)
+            else:
+                red_channel = red_channel[:bytes_per_channel]
+
+            # Extract Green Channel: DEX bytecode
+            dex_bytecode = self._extract_bytecode(apk_path)
+            green_channel = np.frombuffer(dex_bytecode[:bytes_per_channel], dtype=np.uint8)
+            if len(green_channel) < bytes_per_channel:
+                green_channel = np.pad(green_channel, (0, bytes_per_channel - len(green_channel)),
+                                     mode='constant', constant_values=0)
+            else:
+                green_channel = green_channel[:bytes_per_channel]
+
+            # Extract Blue Channel: AndroidManifest.xml
+            try:
+                apk = APK(apk_path)
+                manifest_bytes = apk.get_android_manifest_xml().encode('utf-8')
+            except:
+                # If manifest extraction fails, try zip extraction
+                try:
+                    with zipfile.ZipFile(apk_path, 'r') as zf:
+                        manifest_bytes = zf.read('AndroidManifest.xml')
+                except:
+                    # If all else fails, use zeros
+                    manifest_bytes = b''
+
+            blue_channel = np.frombuffer(manifest_bytes[:bytes_per_channel], dtype=np.uint8)
+            if len(blue_channel) < bytes_per_channel:
+                blue_channel = np.pad(blue_channel, (0, bytes_per_channel - len(blue_channel)),
+                                    mode='constant', constant_values=0)
+            else:
+                blue_channel = blue_channel[:bytes_per_channel]
+
+            # Reshape each channel to image dimensions
+            red_channel = red_channel.reshape((self.image_size, self.image_size))
+            green_channel = green_channel.reshape((self.image_size, self.image_size))
+            blue_channel = blue_channel.reshape((self.image_size, self.image_size))
+
+            # Stack channels to create RGB image
+            rgb_array = np.stack([red_channel, green_channel, blue_channel], axis=2)
+
+            # Create PIL Image
+            image = Image.fromarray(rgb_array, mode='RGB')
+
+            # Save if output path provided
+            if output_path:
+                output_path = Path(output_path)
+                output_path.parent.mkdir(parents=True, exist_ok=True)
+                image.save(output_path)
+                print(f"✓ Converted {Path(apk_path).name} to RGB image: {output_path}")
+
+            return image
+
+        except Exception as e:
+            print(f"✗ Error converting {apk_path} to RGB image: {e}")
+            raise
 
     def convert_bytecode_to_texture(self, apk_path: str, output_path: str = None,
                                    method: str = 'markov') -> Image.Image:

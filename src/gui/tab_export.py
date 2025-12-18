@@ -65,7 +65,8 @@ class ExportWorker(QThread):
 
                 image_results = exporter.export_images(
                     output_path=images_dir,
-                    image_size=self.config['image_size']
+                    image_size=self.config['image_size'],
+                    image_method=self.config.get('image_method', 'raw')
                 )
 
                 results['images'] = image_results
@@ -227,7 +228,13 @@ class ExportTab(QWidget):
         method_layout.addWidget(QLabel("Conversion Method:"))
 
         self.image_method_combo = QComboBox()
-        self.image_method_combo.addItems(["Raw Bytecode", "Markov Matrix", "Histogram", "Entropy"])
+        self.image_method_combo.addItems([
+            "Raw Bytecode", 
+            "RGB (APK+DEX+Manifest)", 
+            "Markov Matrix", 
+            "Histogram", 
+            "Entropy"
+        ])
         method_layout.addWidget(self.image_method_combo)
         method_layout.addStretch()
         layout.addLayout(method_layout)
@@ -404,6 +411,7 @@ class ExportTab(QWidget):
 
             method_map = {
                 "Raw Bytecode": "raw",
+                "RGB (APK+DEX+Manifest)": "rgb_channels",
                 "Markov Matrix": "markov",
                 "Histogram": "histogram",
                 "Entropy": "entropy"
