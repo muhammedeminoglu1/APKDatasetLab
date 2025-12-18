@@ -9,6 +9,7 @@ from pathlib import Path
 
 from core.workspace_manager import WorkspaceManager
 from core.virustotal_scanner import VirusTotalScanner
+from core.androzoo_client import AndroZooClient
 from utils.translator import tr
 
 
@@ -84,6 +85,91 @@ class VirusTotalThread(QThread):
         self.finished_scan.emit()
 
 
+class AndroZooThread(QThread):
+    """Thread for AndroZoo hash database lookup"""
+    progress = pyqtSignal(int, int)  # current, total
+    result = pyqtSignal(str, str, str, int, str)  # filename, suggested_label, confidence, vt_detections, reasoning
+    status = pyqtSignal(str)  # status message
+    finished_scan = pyqtSignal(int, int)  # found, total
+
+    def __init__(self, api_key, vt_threshold, apk_list, db_loaded=False, androzoo_client=None):
+        super().__init__()
+        self.api_key = api_key
+        self.vt_threshold = vt_threshold
+        self.apk_list = apk_list
+        self.db_loaded = db_loaded
+        self.client = androzoo_client
+
+    def run(self):
+        workspace = WorkspaceManager()
+
+        # Initialize client if not provided
+        if not self.client:
+            self.status.emit("Initializing AndroZoo client...")
+            self.client = AndroZooClient(self.api_key)
+
+        # Download CSV if needed
+        if not self.db_loaded and not self.client.csv_cache_path.exists():
+            self.status.emit("Downloading AndroZoo database (~2.7GB)... This may take several minutes.")
+            if not self.client.download_csv_database():
+                self.status.emit("ERROR: Failed to download database")
+                self.finished_scan.emit(0, len(self.apk_list))
+                return
+
+        # Load database
+        if not self.db_loaded:
+            self.status.emit("Loading AndroZoo database into memory...")
+            if not self.client.load_csv_database():
+                self.status.emit("ERROR: Failed to load database")
+                self.finished_scan.emit(0, len(self.apk_list))
+                return
+
+        self.status.emit(f"Querying {len(self.apk_list)} APKs...")
+
+        found_count = 0
+        for i, apk_file in enumerate(self.apk_list):
+            try:
+                # Query APK
+                metadata = self.client.query_apk_file(apk_file)
+
+                if metadata:
+                    found_count += 1
+
+                    # Get label suggestion
+                    suggestion = self.client.suggest_label(metadata, self.vt_threshold)
+
+                    # Emit result (don't auto-organize, just suggest)
+                    self.result.emit(
+                        Path(apk_file).name,
+                        suggestion['suggested_label'],
+                        f"{suggestion['confidence']}%",
+                        suggestion['vt_detections'],
+                        suggestion['reasoning']
+                    )
+                else:
+                    self.result.emit(
+                        Path(apk_file).name,
+                        'NOT_FOUND',
+                        'N/A',
+                        0,
+                        'APK not found in AndroZoo database'
+                    )
+
+            except Exception as e:
+                print(f"Error querying {apk_file}: {e}")
+                self.result.emit(
+                    Path(apk_file).name,
+                    'ERROR',
+                    'N/A',
+                    0,
+                    str(e)
+                )
+
+            self.progress.emit(i + 1, len(self.apk_list))
+
+        self.finished_scan.emit(found_count, len(self.apk_list))
+
+
 class LabelingTab(QWidget):
     """Unified labeling tab with all methods"""
 
@@ -92,6 +178,9 @@ class LabelingTab(QWidget):
         self.workspace = WorkspaceManager()
         self.parent_window = None
         self.vt_thread = None
+        self.az_thread = None
+        self.androzoo_client = None
+        self.az_db_loaded = False
         self.init_ui()
 
     def init_ui(self):
@@ -142,13 +231,45 @@ class LabelingTab(QWidget):
         group = QGroupBox(tr('group_hash_labeling'))
         layout = QVBoxLayout()
 
-        info = QLabel("Check APKs against known hash database (Drebin, AndroZoo)")
+        info = QLabel("Check APKs against AndroZoo hash database")
         info.setStyleSheet("color: gray; font-size: 11px;")
         layout.addWidget(info)
 
+        # AndroZoo API Key
+        api_key_layout = QHBoxLayout()
+        api_key_layout.addWidget(QLabel("AndroZoo API Key:"))
+        self.az_api_key_input = QLineEdit()
+        self.az_api_key_input.setPlaceholderText("Enter your AndroZoo API key")
+        self.az_api_key_input.setEchoMode(QLineEdit.Password)
+        api_key_layout.addWidget(self.az_api_key_input)
+        layout.addLayout(api_key_layout)
+
+        # VT Detection Threshold
+        threshold_layout = QHBoxLayout()
+        threshold_layout.addWidget(QLabel("VT Detection Threshold:"))
+        self.az_threshold_spin = QSpinBox()
+        self.az_threshold_spin.setRange(1, 70)
+        self.az_threshold_spin.setValue(5)
+        self.az_threshold_spin.setToolTip("Minimum VirusTotal detections to classify as MALWARE")
+        threshold_layout.addWidget(self.az_threshold_spin)
+        threshold_layout.addStretch()
+        layout.addLayout(threshold_layout)
+
+        # Progress bar (hidden by default)
+        self.az_progress = QProgressBar()
+        self.az_progress.setVisible(False)
+        layout.addWidget(self.az_progress)
+
+        # Lookup button
         self.hash_btn = QPushButton(tr('btn_hash_lookup'))
         self.hash_btn.clicked.connect(self.check_hash_database)
         layout.addWidget(self.hash_btn)
+
+        # Log area
+        self.az_log = QTextEdit()
+        self.az_log.setMaximumHeight(150)
+        self.az_log.setReadOnly(True)
+        layout.addWidget(self.az_log)
 
         group.setLayout(layout)
         return group
@@ -305,8 +426,92 @@ class LabelingTab(QWidget):
                                f"Folder-based labeling completed\nLabeled {labeled_count} APKs")
 
     def check_hash_database(self):
-        """Check hash database"""
-        QMessageBox.information(self, "Info", "Hash database feature not yet implemented")
+        """Check AndroZoo hash database"""
+        api_key = self.az_api_key_input.text().strip()
+
+        if not api_key:
+            QMessageBox.warning(self, "Warning", "Please enter your AndroZoo API key")
+            return
+
+        # Get selected APKs
+        if not self.parent_window:
+            self.parent_window = self.window()
+
+        apk_tab = self.parent_window.tab_apk
+        selected_apks = apk_tab.get_selected_apks()
+
+        if not selected_apks:
+            QMessageBox.warning(self, "Warning", tr('msg_select_apks'))
+            return
+
+        # Get full paths
+        apk_paths = []
+        for apk_name in selected_apks:
+            for apk_info in apk_tab.apk_list:
+                if apk_info['filename'] == apk_name:
+                    apk_paths.append(apk_info['path'])
+                    break
+
+        # Start thread
+        self.hash_btn.setEnabled(False)
+        self.az_progress.setVisible(True)
+        self.az_progress.setMaximum(len(apk_paths))
+        self.az_progress.setValue(0)
+        self.az_log.clear()
+        self.az_log.append("Starting AndroZoo hash lookup...")
+
+        vt_threshold = self.az_threshold_spin.value()
+        self.az_thread = AndroZooThread(
+            api_key,
+            vt_threshold,
+            apk_paths,
+            self.az_db_loaded,
+            self.androzoo_client
+        )
+        self.az_thread.progress.connect(self.update_az_progress)
+        self.az_thread.result.connect(self.handle_az_result)
+        self.az_thread.status.connect(self.update_az_status)
+        self.az_thread.finished_scan.connect(self.az_scan_finished)
+        self.az_thread.start()
+
+    def update_az_progress(self, current: int, total: int):
+        """Update AndroZoo progress bar"""
+        self.az_progress.setValue(current)
+
+    def update_az_status(self, message: str):
+        """Update AndroZoo status message"""
+        self.az_log.append(f"[STATUS] {message}")
+
+    def handle_az_result(self, filename: str, suggested_label: str, confidence: str, vt_detections: int, reasoning: str):
+        """Handle AndroZoo lookup result"""
+        if suggested_label == 'NOT_FOUND':
+            self.az_log.append(f"❌ {filename}: Not found in database")
+        elif suggested_label == 'ERROR':
+            self.az_log.append(f"⚠️  {filename}: {reasoning}")
+        else:
+            self.az_log.append(f"✓ {filename}: {suggested_label} (Confidence: {confidence}, VT: {vt_detections}) - {reasoning}")
+
+    def az_scan_finished(self, found: int, total: int):
+        """AndroZoo scanning finished"""
+        self.hash_btn.setEnabled(True)
+        self.az_progress.setVisible(False)
+
+        # Save client and db_loaded status for future lookups
+        if self.az_thread and self.az_thread.client:
+            self.androzoo_client = self.az_thread.client
+            self.az_db_loaded = True
+
+        self.az_log.append("\n" + "="*50)
+        self.az_log.append(f"✓ AndroZoo lookup completed!")
+        self.az_log.append(f"  Found: {found}/{total} APKs")
+        self.az_log.append("  Note: These are SUGGESTIONS only. Review and apply labels manually.")
+
+        QMessageBox.information(
+            self,
+            "AndroZoo Lookup Complete",
+            f"Found {found}/{total} APKs in AndroZoo database.\n\n"
+            "Review the suggestions in the log and apply labels manually using the Manual Labeling section."
+        )
 
     def start_virustotal_scan(self):
         """Start VirusTotal scanning"""

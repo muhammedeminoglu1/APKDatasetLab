@@ -25,6 +25,11 @@ labeling:
     api_key: ""
     threshold: 0.20
     rate_limit_delay: 15
+  androzoo:
+    enabled: false
+    api_key: ""
+    vt_threshold: 5  # Minimum VT detections to classify as MALWARE
+    cache_age_days: 7  # Re-download CSV database after N days
 
 features:
   manifest:
